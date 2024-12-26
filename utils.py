@@ -141,3 +141,84 @@ def eigenvalue_visualizor(
     # plt.close()
     plt.show()
     return eigenvalues, eigenvectors
+
+
+def generate_graphs(
+        n_nodes, 
+        p_edge=0.2, 
+        is_isomorphic=True, 
+        is_connected=True,
+        is_directed=True,
+        k = 1,
+    ):
+    '''''
+    生成一对同构或不同构但相似的图
+
+    输入：
+        n_nodes: 节点数
+        p_edge: 生成边概率
+        is_ismorphic: 是否同构
+        is_connected: 是否要求为连通图
+        is_directed: 是否为有向图
+        k: 若不为连通图，修改k对边
+    输出：
+        G1, G2两个nx格式图
+    '''''
+  
+    if is_connected:
+        while True:
+            G1 = nx.erdos_renyi_graph(n_nodes, p_edge, directed=is_directed)
+            if is_directed: # 若允许有向图弱连通则改成if False
+                if nx.is_strongly_connected(G1):  # 检查是否为强连通图
+                    break
+            else:
+                if nx.is_connected(G1): # 检查是否为连通图
+                    break
+    else:
+        G1 = nx.erdos_renyi_graph(n_nodes, p_edge, directed=is_directed) 
+
+    G2 = G1.copy()
+    if not is_isomorphic:
+        n_changes = k # np.random.randint(1, k+1)  
+        for _ in range(n_changes):
+            existing_edges = list(G2.edges())
+            edge_to_remove = random.choice(existing_edges)
+            G2.remove_edge(*edge_to_remove)                     
+            while True:
+                u, v = random.sample(range(n_nodes), 2)
+                if not G2.has_edge(u, v):
+                    G2.add_edge(u, v)
+                    break 
+
+    # 对G2进行节点重排列，加强随机性
+    perm = np.random.permutation(n_nodes)
+    adj_matrix = nx.adjacency_matrix(G2).todense()
+    adj_matrix_permuted = adj_matrix[perm][:, perm]
+    if is_directed:
+        G2 = nx.DiGraph(adj_matrix_permuted)  
+    else:
+        G2 = nx.from_numpy_array(adj_matrix_permuted)  
+    return G1, G2
+
+
+def plot_graphs_and_matrices(G1, G2):
+    '''''
+    展示两张图和对应的邻接矩阵
+    
+    输入：
+        G1, G2: 两个nx格式图
+    '''''
+    plt.rcParams['font.sans-serif'] = 'SimHei' 
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))  
+    # 绘制图
+    nx.draw(G1, ax=axes[0,0], with_labels=True, node_color='lightblue')
+    axes[0,0].set_title('图1')  
+    nx.draw(G2, ax=axes[0,1], with_labels=True, node_color='lightgreen')
+    axes[0,1].set_title('图2')
+    # 显示邻接矩阵
+    axes[1,0].imshow(nx.adjacency_matrix(G1).todense(), cmap='Blues')
+    axes[1,0].set_title('图1的邻接矩阵')    
+    axes[1,1].imshow(nx.adjacency_matrix(G2).todense(), cmap='Greens')
+    axes[1,1].set_title('图2的邻接矩阵')   
+    plt.tight_layout()
+    plt.show()
