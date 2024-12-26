@@ -233,3 +233,23 @@ def save_graph(G, name):
     '''''
     with open(f'graphs/{name}.pkl', 'wb') as f:
         pickle.dump(G, f)
+
+
+def graph_to_mat(G):
+    '''''
+    将输入的nx格式图转化为numpy格式邻接矩阵
+    '''''
+    return nx.adjacency_matrix(G).todense()
+
+
+def mat_to_graph(mat, is_directed=True):
+    '''''
+    将输入的numpy格式邻接矩阵转化为有向/无向图
+    '''''
+    if is_directed:
+        G = nx.DiGraph(mat)  
+    else:
+        G = nx.from_numpy_array(mat)
+    # nx.draw(G, with_labels=True, node_color='lightblue')
+    # plt.show()
+    return G
