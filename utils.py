@@ -229,7 +229,7 @@ def plot_graphs_and_matrices(G1, G2):
 
 def save_graph(G, name):
     '''''
-    把图G存储到graph文件夹的name.pkl
+    把图G存储到graphs文件夹的name.pkl
     '''''
-    with open(f'graph/{name}.pkl', 'wb') as f:
+    with open(f'graphs/{name}.pkl', 'wb') as f:
         pickle.dump(G, f)
