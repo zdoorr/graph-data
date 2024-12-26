@@ -4,6 +4,7 @@ import seaborn as sns
 import matplotlib.pyplot as plt
 import networkx as nx
 import random
+import pickle
 
 
 def random_matrix_generator(
@@ -224,3 +225,11 @@ def plot_graphs_and_matrices(G1, G2):
     axes[1,1].set_title('图2的邻接矩阵')   
     plt.tight_layout()
     plt.show()
+
+
+def save_graph(G, name):
+    '''''
+    把图G存储到graph文件夹的name.pkl
+    '''''
+    with open(f'graph/{name}.pkl', 'wb') as f:
+        pickle.dump(G, f)
