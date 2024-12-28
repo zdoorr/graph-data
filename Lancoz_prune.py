@@ -110,9 +110,9 @@ def experiment_1():
     """
     np.random.seed(2024)
     mean_iter_list = []
-    Vs = 25 * np.arange(1, 21)
+    Vs = 200 * np.arange(1, 6)
     for V in Vs:
-        p = 3 / V
+        p = 6 / V
         m = mean_iter_finder(V, p)
         mean_iter_list.append(m)
     with open("mean_iter_list.txt", "w") as f:
@@ -121,9 +121,7 @@ def experiment_1():
     plt.figure(figsize=(10, 6))
     plt.plot(Vs, mean_iter_list, marker="o", label="mean_iter")
     plt.xlabel("Number of vertices")
-    plt.ylabel(
-        "Mean of iterations before losing orthogonality"
-    )
+    plt.ylabel("Mean of iterations before losing orthogonality")
     plt.title("Mean of iterations against the number of vertices")
     plt.legend()
     plt.savefig("./image/mean_iter_vs_V.png")
@@ -131,10 +129,53 @@ def experiment_1():
 
 
 def experiment_2():
-    pass 
+    np.random.seed(2024)
+    Vs = 200 * np.arange(1, 6)
+    rs = [0.01, 0.02, 0.05, 0.1, 0.2]
+    plt.figure(figsize=(10, 6))
+    for r in rs:
+        mean_stop_iter_list = []
+        for V in Vs:
+            p = 6 / V
+            q = r * p  # perturbation rate
+            stop_iter_list = []
+            for _ in range(10):
+                A = random_matrix_generator(
+                    n=V,
+                    nonzeros_prob=p,
+                    weighted=True,
+                    normalize=False,
+                    symmetric=True,
+                    fill_diagonal=False,
+                    show_matrix=False,
+                    save_fig=False,
+                )
+                target_eigenvalue = np.linalg.eigvalsh(A)
+                for _ in range(10):
+                    A_perturb = symmetric_matrix_perturbator(
+                        A, permutation=True, perturbating_prob=q
+                    )
+                    result, n = lancoz_pruner(A_perturb, target_eigenvalue)
+                    stop_iter_list.append(n)
+            mean_iter = np.mean(stop_iter_list)
+            print(
+                f"When r={r}, V={V}, the mean number of stopping iterations is:",
+                mean_iter,
+            )
+            mean_stop_iter_list.append(mean_iter)
+        plt.plot(Vs, mean_stop_iter_list, marker="o", label=f"r={r*100:.0f}%")
+    plt.xlabel("Number of vertices")
+    plt.ylabel("Mean of stopping iterations")
+    plt.title("Mean of stopping iterations against vertex number")
+    plt.legend()
+    plt.savefig("./image/stopping_iterations.png")
+    plt.show()
+
 
 def experiment_3():
     pass
 
+
 if __name__ == "__main__":
     experiment_1()
+    # experiment_2()

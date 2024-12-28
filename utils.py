@@ -154,19 +154,28 @@ def symmetric_matrix_perturbator(
         print("The matrix is not symmetric.")
         return None
 
-    n = A.shape[0]  
+    n = A.shape[0]
 
     # the indicator matrix, find the elements greater than a very small value
     P = (A > 1e-6).astype(int)
-    
+
+    # calculate the ratio of non-zero elements to all elements
+    non_zero_ratio = np.sum(P) / (n**2)
+
     S = np.random.rand(n, n)
-    # flip the elements of P with probability perturbating_prob
-    P[S < perturbating_prob] = 1 - P[S < perturbating_prob]
-    
-    # make the indicator matrix symmetric
-    Pu = np.triu(P)
-    P = Pu + Pu.T - np.diag(np.diag(Pu))
-    
+
+    indices = np.argwhere(S < perturbating_prob)
+    P[S < perturbating_prob] = 0
+    for i, j in indices:
+        r = np.random.rand()
+        if r < non_zero_ratio:
+            P[i, j] = 1
+            P[j, i] = 1
+
+    # # make the indicator matrix symmetric
+    # Pu = np.triu(P)
+    # P = Pu + Pu.T - np.diag(np.diag(Pu))
+
     # calculate the degree_in and degree_out of each vertex
     # NOTE it is corresponding to a undirected graph
     degree_total = np.sum(P, axis=0)
@@ -182,7 +191,7 @@ def symmetric_matrix_perturbator(
 
     # element-wise multiplication
     A = W * P
-    
+
     # permute the rows and columns of A
     if permutation:
         perm = np.random.permutation(n)
