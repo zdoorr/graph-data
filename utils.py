@@ -36,47 +36,77 @@ def random_matrix_generator(
     """
     if normalize and symmetric:
         print("normalize and symmetric cannot be both True.")
-        print("symmetric will be set to False.")
-        symmetric = False
-    if weighted:
-        W = np.random.rand(n, n)
-        if symmetric:
-            W = W + W.T - np.diag(np.diag(W))
-    else:
-        W = np.ones((n, n))
-    if symmetric:
-        P = np.random.rand(n, n)
-        # set the upper triangle to zero
-        P = np.tril(P)
-        P_ = P.T
-        P = P + P_ - np.diag(np.diag(P))
-    else:
-        P = np.random.rand(n, n)
-    P[P < nonzeros_prob] = 1
-    P[P >= nonzeros_prob] = 0
+        print(
+            "The algorithm will generate a sysmetric matrix first and then normalize it."
+        )
 
-    if fill_diagonal:
+    if symmetric:
+        S = np.random.rand(n, n)
+        # set the upper triangle to zero
+        S = np.tril(S)
+        S_ = S.T
+        S = S + S_ - np.diag(np.diag(S))
+    else:
+        S = np.random.rand(n, n)
+    # make P the indicator matrix
+    P = np.zeros((n, n))
+    P[S < nonzeros_prob] = 1
+
+    if fill_diagonal:  # whether to guarantee every vertex can go back to itself
         np.fill_diagonal(P, 1)
     else:
         np.fill_diagonal(P, 0)
-    # check if any vertex has no edge
-    for i in range(n):
-        i_row_sum_without_diagonal = P[i, :].sum() - P[i, i]
-        i_col_sum_without_diagonal = P[:, i].sum() - P[i, i]
-        if i_row_sum_without_diagonal < 1e-6 and i_col_sum_without_diagonal < 1e-6:
-            # randomly choose a number between 0 and n except i
-            j = np.random.choice(np.arange(n))
-            if j == i:
-                j = (i + 1) % n
-            if symmetric:
-                P[i, j] = 1
-                P[j, i] = 1
-            else:
-                r = np.random.rand()
-                if r < 0.5:
-                    P[i, j] = 1
-                else:
-                    P[j, i] = 1
+
+    # # check if any vertex has no edge
+    # for i in range(n):
+    #     i_row_sum_without_diagonal = P[i, :].sum() - P[i, i]
+    #     i_col_sum_without_diagonal = P[:, i].sum() - P[i, i]
+    #     if i_row_sum_without_diagonal < 1e-6 and i_col_sum_without_diagonal < 1e-6:
+    #         # randomly choose a number between 0 and n except i
+    #         j = i
+    #         while j == i:
+    #             j = np.random.choice(np.arange(n))
+    #         if symmetric:
+    #             P[i, j] = 1
+    #             P[j, i] = 1
+    #         else:
+    #             r = np.random.rand()
+    #             if r < 0.5:
+    #                 P[i, j] = 1
+    #             else:
+    #                 P[j, i] = 1
+
+    # plot the indicator matrix as heatmap
+    # sns.heatmap(P, cmap="YlGnBu", annot=False, fmt=".2f")
+    # plt.title("Indicator matrix")
+    # plt.show()
+
+    # calculate the degree_in and degree_out of each vertex
+    if not symmetric:
+        degree_in = np.sum(P, axis=0)
+        degree_out = np.sum(P, axis=1)
+        # NOTE if degree_out is large, the vertex need more particles to deliver to it
+        # NOTE if degree_in is large, many other vertex will deliver to it
+        degree_total = degree_in + degree_out - np.diag(P)
+    else:
+        degree_total = np.sum(P, axis=0)
+
+    if weighted:
+        w = degree_total
+        W_ = np.tile(w, (n, 1))
+        if symmetric:
+            W = 0.5 * (W_ + W_.T)
+        else:
+            W = W_
+    else:
+        W = np.ones((n, n))
+
+    # if weighted:
+    #     W = np.random.rand(n, n)
+    #     if symmetric:
+    #         W = W + W.T - np.diag(np.diag(W))
+    # else:
+    #     W = np.ones((n, n))
 
     # sns.heatmap(P, cmap="YlGnBu", annot=False, fmt=".2f")
     # plt.title("Indicator matrix")
@@ -94,14 +124,70 @@ def random_matrix_generator(
 
     # plot the matrix as heatmap
     if show_matrix:
+        info = f"weighted-{weighted}, normalize-{normalize}, symmetric-{symmetric}, fill_diagonal-{fill_diagonal}"
         sns.heatmap(A, cmap="YlGnBu", annot=False, fmt=".2f")
         plt.title(info)
         if save_fig:
             if not os.path.exists(save_dir):
                 os.makedirs(save_dir)
-            info = f"weighted-{weighted}, normalize-{normalize}, symmetric-{symmetric}, fill_diagonal-{fill_diagonal}"
             plt.savefig(os.path.join(save_dir, f"matrix_{info}.png"))
         plt.show()
+    return A
+
+
+def symmetric_matrix_perturbator(
+    A, permutation=True, weighted=True, perturbating_prob=0.01
+):
+    """
+    Perturb the given symmetric matrix A with a certain probability.
+    If needed, also permute the rows and columns of A.
+
+    Args:
+        A: the symmetric matrix to be perturbed.
+        permutation: whether to permute the rows and columns of A.
+        weighted: whether the A is weighted or not.
+        perturbating_prob: the probability of perturbating an element of A.
+    Returns:
+        The perturbed matrix.
+    """
+    if not np.allclose(A, A.T):
+        print("The matrix is not symmetric.")
+        return None
+
+    n = A.shape[0]  
+
+    # the indicator matrix, find the elements greater than a very small value
+    P = (A > 1e-6).astype(int)
+    
+    S = np.random.rand(n, n)
+    # flip the elements of P with probability perturbating_prob
+    P[S < perturbating_prob] = 1 - P[S < perturbating_prob]
+    
+    # make the indicator matrix symmetric
+    Pu = np.triu(P)
+    P = Pu + Pu.T - np.diag(np.diag(Pu))
+    
+    # calculate the degree_in and degree_out of each vertex
+    # NOTE it is corresponding to a undirected graph
+    degree_total = np.sum(P, axis=0)
+
+    if weighted:
+        w = degree_total
+        # NOTE if degree_out is large, the vertex need more particles to deliver to it
+        # NOTE if degree_in is large, many other vertex will deliver to it
+        W_ = np.tile(w, (n, 1))
+        W = 0.5 * (W_ + W_.T)
+    else:
+        W = np.ones((n, n))
+
+    # element-wise multiplication
+    A = W * P
+    
+    # permute the rows and columns of A
+    if permutation:
+        perm = np.random.permutation(n)
+        A = A[perm][:, perm]
+
     return A
 
 
@@ -147,14 +233,14 @@ def eigenvalue_visualizor(
 
 
 def generate_graphs(
-        n_nodes, 
-        p_edge=0.2, 
-        is_isomorphic=True, 
-        is_connected=True,
-        is_directed=True,
-        k = 1,
-    ):
-    '''''
+    n_nodes,
+    p_edge=0.2,
+    is_isomorphic=True,
+    is_connected=True,
+    is_directed=True,
+    k=1,
+):
+    """''
     生成一对同构或不同构但相似的图
 
     输入：
@@ -166,90 +252,116 @@ def generate_graphs(
         k: 若不为连通图，修改k对边
     输出：
         G1, G2两个nx格式图
-    '''''
-  
+    """ ""
+
     if is_connected:
         while True:
             G1 = nx.erdos_renyi_graph(n_nodes, p_edge, directed=is_directed)
-            if is_directed: # 若允许有向图弱连通则改成if False
+            if is_directed:  # 若允许有向图弱连通则改成if False
                 if nx.is_strongly_connected(G1):  # 检查是否为强连通图
                     break
             else:
-                if nx.is_connected(G1): # 检查是否为连通图
+                if nx.is_connected(G1):  # 检查是否为连通图
                     break
     else:
-        G1 = nx.erdos_renyi_graph(n_nodes, p_edge, directed=is_directed) 
+        G1 = nx.erdos_renyi_graph(n_nodes, p_edge, directed=is_directed)
 
     G2 = G1.copy()
     if not is_isomorphic:
-        n_changes = k # np.random.randint(1, k+1)  
+        n_changes = k  # np.random.randint(1, k+1)
         for _ in range(n_changes):
             existing_edges = list(G2.edges())
             edge_to_remove = random.choice(existing_edges)
-            G2.remove_edge(*edge_to_remove)                     
+            G2.remove_edge(*edge_to_remove)
             while True:
                 u, v = random.sample(range(n_nodes), 2)
                 if not G2.has_edge(u, v):
                     G2.add_edge(u, v)
-                    break 
+                    break
 
     # 对G2进行节点重排列，加强随机性
     perm = np.random.permutation(n_nodes)
     adj_matrix = nx.adjacency_matrix(G2).todense()
     adj_matrix_permuted = adj_matrix[perm][:, perm]
     if is_directed:
-        G2 = nx.DiGraph(adj_matrix_permuted)  
+        G2 = nx.DiGraph(adj_matrix_permuted)
     else:
-        G2 = nx.from_numpy_array(adj_matrix_permuted)  
+        G2 = nx.from_numpy_array(adj_matrix_permuted)
     return G1, G2
 
 
 def plot_graphs_and_matrices(G1, G2):
-    '''''
+    """''
     展示两张图和对应的邻接矩阵
     
     输入：
         G1, G2: 两个nx格式图
-    '''''
-    plt.rcParams['font.sans-serif'] = 'SimHei' 
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))  
+    """ ""
+    plt.rcParams["font.sans-serif"] = "SimHei"
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     # 绘制图
-    nx.draw(G1, ax=axes[0,0], with_labels=True, node_color='lightblue')
-    axes[0,0].set_title('图1')  
-    nx.draw(G2, ax=axes[0,1], with_labels=True, node_color='lightgreen')
-    axes[0,1].set_title('图2')
+    nx.draw(G1, ax=axes[0, 0], with_labels=True, node_color="lightblue")
+    axes[0, 0].set_title("图1")
+    nx.draw(G2, ax=axes[0, 1], with_labels=True, node_color="lightgreen")
+    axes[0, 1].set_title("图2")
     # 显示邻接矩阵
-    axes[1,0].imshow(nx.adjacency_matrix(G1).todense(), cmap='Blues')
-    axes[1,0].set_title('图1的邻接矩阵')    
-    axes[1,1].imshow(nx.adjacency_matrix(G2).todense(), cmap='Greens')
-    axes[1,1].set_title('图2的邻接矩阵')   
+    axes[1, 0].imshow(nx.adjacency_matrix(G1).todense(), cmap="Blues")
+    axes[1, 0].set_title("图1的邻接矩阵")
+    axes[1, 1].imshow(nx.adjacency_matrix(G2).todense(), cmap="Greens")
+    axes[1, 1].set_title("图2的邻接矩阵")
     plt.tight_layout()
     plt.show()
 
 
 def save_graph(G, name):
-    '''''
+    """''
     把图G存储到graphs文件夹的name.pkl
-    '''''
-    with open(f'graphs/{name}.pkl', 'wb') as f:
+    """ ""
+    with open(f"graphs/{name}.pkl", "wb") as f:
         pickle.dump(G, f)
 
 
 def graph_to_mat(G):
-    '''''
+    """''
     将输入的nx格式图转化为numpy格式邻接矩阵
-    '''''
+    """ ""
     return nx.adjacency_matrix(G).todense()
 
 
 def mat_to_graph(mat, is_directed=True):
-    '''''
+    """''
     将输入的numpy格式邻接矩阵转化为有向/无向图
-    '''''
+    """ ""
     if is_directed:
-        G = nx.DiGraph(mat)  
+        G = nx.DiGraph(mat)
     else:
         G = nx.from_numpy_array(mat)
     # nx.draw(G, with_labels=True, node_color='lightblue')
     # plt.show()
     return G
+
+
+def transition_matrix_iterator(A, x0, iters=100):
+    """
+    Simulate the Markov chain by matrix multiplication.
+
+    Args:
+        A: the transition matrix. Each row of A will be normalized to sum up to 1.
+        x0: the initial state.
+        iters: the number of iterations. Default is 100.
+    Returns:
+        A list of states at each iteration.
+    """
+    x = x0
+    states = [x]
+    for i in range(iters):
+        x = np.dot(A, x)
+        states.append(x)
+
+    # plot the states, each line represents a postition in the state vector
+    plt.plot(states)
+    plt.xlabel("Iteration")
+    plt.ylabel("State")
+    plt.title("Markov chain simulation")
+    plt.show()
+    return states
