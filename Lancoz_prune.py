@@ -66,23 +66,24 @@ def lancoz_pruner(A, target_eigenvalue):
     return True, n
 
 
-def mean_iter_finder(V, p):
+def mean_iter_finder_before_orthogonality_loss(V, p, weighted=True):
     """
     This function find the mean iterationsof iterations for Lancoz algorithm before i lose othogonalization.
 
     Args:
         V: the number of vertices
         p: the probability of non-zero elements in the matrix
+        weighted: generating a weighted or unweighted matrix
 
     Returns:
         mean_iter: the mean number of iterations
     """
     stop_iter_list = []
-    for _ in range(10):
+    for _ in range(25):
         A = random_matrix_generator(
             n=V,
             nonzeros_prob=p,
-            weighted=True,
+            weighted=weighted,
             normalize=False,
             symmetric=True,
             fill_diagonal=False,
@@ -91,7 +92,7 @@ def mean_iter_finder(V, p):
         )
         target_eigenvalue = np.sort(np.linalg.eigvalsh(A))
 
-        for _ in range(10):
+        for _ in range(2):
             # permute the rows and columns of A
             perm = np.random.permutation(V)
             A_perm = A[perm][:, perm]
@@ -109,73 +110,86 @@ def experiment_1():
     It generate a random matrix A and find the mean number of iterations before losing orthogonality.
     """
     np.random.seed(2024)
-    mean_iter_list = []
-    Vs = 200 * np.arange(1, 6)
+    weighted_mean_iter_list = []
+    unweighted_mean_iter_list = []
+    Vs = 100 * np.arange(1, 13)
     for V in Vs:
         p = 6 / V
-        m = mean_iter_finder(V, p)
-        mean_iter_list.append(m)
-    with open("mean_iter_list.txt", "w") as f:
-        f.write(str(Vs) + "\n")
-        f.write(str(mean_iter_list))
+        w_m = mean_iter_finder_before_orthogonality_loss(V, p, weighted=True)
+        weighted_mean_iter_list.append(w_m)
+        u_m = mean_iter_finder_before_orthogonality_loss(V, p, weighted=False)
+        unweighted_mean_iter_list.append(u_m)
+
     plt.figure(figsize=(10, 6))
-    plt.plot(Vs, mean_iter_list, marker="o", label="mean_iter")
-    plt.xlabel("Number of vertices")
-    plt.ylabel("Mean of iterations before losing orthogonality")
-    plt.title("Mean of iterations against the number of vertices")
+    sns.pointplot(x=Vs, y=weighted_mean_iter_list, color="red", label="weighted")
+    sns.pointplot(x=Vs, y=unweighted_mean_iter_list, color="blue", label="unweighted")
+    plt.xlabel("|V|")
+    plt.ylabel("Iter")
+    plt.title("Mean iterations before Lancoz algorithm loses orthogonality")
     plt.legend()
     plt.savefig("./image/mean_iter_vs_V.png")
     plt.show()
 
 
+def mean_iter_finder_when_pruning(V, p, q, weighted=True):
+    stop_iter_list = []
+    for _ in range(10):
+        A = random_matrix_generator(
+            n=V,
+            nonzeros_prob=p,
+            weighted=weighted,
+            normalize=False,
+            symmetric=True,
+            fill_diagonal=False,
+            show_matrix=False,
+            save_fig=False,
+        )
+        target_eigenvalue = np.linalg.eigvalsh(A)
+        for _ in range(10):
+            A_perturb = symmetric_matrix_perturbator(
+                A, permutation=True, weighted=weighted, perturbating_prob=q
+            )
+            result, n = lancoz_pruner(A_perturb, target_eigenvalue)
+            stop_iter_list.append(n)
+    mean_iter = np.mean(stop_iter_list)
+    return mean_iter
+
+
 def experiment_2():
     np.random.seed(2024)
     Vs = 200 * np.arange(1, 6)
-    rs = [0.01, 0.02, 0.05, 0.1, 0.2]
+    rs = [0.05, 0.1, 0.2]
+    # random generate colors for each r
+    colors = [sns.color_palette()[i] for i in range(len(rs))]
     plt.figure(figsize=(10, 6))
     for r in rs:
-        mean_stop_iter_list = []
-        for V in Vs:
-            p = 6 / V
-            q = r * p  # perturbation rate
-            stop_iter_list = []
-            for _ in range(10):
-                A = random_matrix_generator(
-                    n=V,
-                    nonzeros_prob=p,
-                    weighted=True,
-                    normalize=False,
-                    symmetric=True,
-                    fill_diagonal=False,
-                    show_matrix=False,
-                    save_fig=False,
+        for weighted in [True, False]:
+            mean_stop_iter_list = []
+            for V in Vs:
+                p = 6 / V
+                q = r * p  # perturbation rate
+                mean_stop_iter_list.append(
+                    mean_iter_finder_when_pruning(V, p, q, weighted)
                 )
-                target_eigenvalue = np.linalg.eigvalsh(A)
-                for _ in range(10):
-                    A_perturb = symmetric_matrix_perturbator(
-                        A, permutation=True, perturbating_prob=q
-                    )
-                    result, n = lancoz_pruner(A_perturb, target_eigenvalue)
-                    stop_iter_list.append(n)
-            mean_iter = np.mean(stop_iter_list)
             print(
-                f"When r={r}, V={V}, the mean number of stopping iterations is:",
-                mean_iter,
+                f"When r={r*100:.0f}% and {'weighted' if weighted else 'unweighted'} , iter when pruning are:\n",
+                mean_stop_iter_list,
             )
-            mean_stop_iter_list.append(mean_iter)
-        plt.plot(Vs, mean_stop_iter_list, marker="o", label=f"r={r*100:.0f}%")
-    plt.xlabel("Number of vertices")
-    plt.ylabel("Mean of stopping iterations")
-    plt.title("Mean of stopping iterations against vertex number")
+            sns.pointplot(
+                x=Vs,
+                y=mean_stop_iter_list,
+                color=colors[rs.index(r)],
+                linestyles="-" if weighted else "--",
+                label=f"r={r*100:.0f}%" if weighted else None,
+            )
+    plt.xlabel("|V|")
+    plt.ylabel("Iter")
+    plt.title("Mean iterations when pruning")
     plt.legend()
     plt.savefig("./image/stopping_iterations.png")
     plt.show()
 
 
-def experiment_3():
-    pass
-
-
 if __name__ == "__main__":
-    experiment_1()
-    # experiment_2()
+    # experiment_1()
+    experiment_2()

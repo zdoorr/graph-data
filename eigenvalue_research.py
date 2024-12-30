@@ -18,8 +18,8 @@ def main():
                     info = f"weighted-{weighted}, normalize-{normalize}, symmetric-{symmetric}, fill_diagonal-{fill_diagonal}"
                     print(info)
                     A = random_matrix_generator(
-                        n=50,
-                        nonzeros_prob=3/50,
+                        n=100,
+                        nonzeros_prob=6/100,
                         weighted=weighted,
                         normalize=normalize,
                         symmetric=symmetric,

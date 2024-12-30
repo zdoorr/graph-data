@@ -165,16 +165,17 @@ def symmetric_matrix_perturbator(
     S = np.random.rand(n, n)
 
     indices = np.argwhere(S < perturbating_prob)
-    P[S < perturbating_prob] = 0
+    # select the indices where i>=j
     for i, j in indices:
+        if i < j:
+            continue
         r = np.random.rand()
         if r < non_zero_ratio:
             P[i, j] = 1
             P[j, i] = 1
-
-    # # make the indicator matrix symmetric
-    # Pu = np.triu(P)
-    # P = Pu + Pu.T - np.diag(np.diag(Pu))
+        else:
+            P[i, j] = 0
+            P[j, i] = 0
 
     # calculate the degree_in and degree_out of each vertex
     # NOTE it is corresponding to a undirected graph
@@ -230,7 +231,7 @@ def eigenvalue_visualizor(
     # plt.title("Eigenvectors")
     # plt.show()
 
-    plt.scatter(np.arange(len(eigenvalues)), eigenvalues)
+    plt.scatter(np.arange(len(eigenvalues)), eigenvalues, linewidths=0.5, marker="o")
     plt.xlabel("Index")
     plt.ylabel("Eigenvalue")
     plt.title(title)
