@@ -7,6 +7,10 @@ import pickle
 import random
  
 def get_node_degrees(G):
+    '''
+    输入：图G
+    输出：图G所有节点的度数
+    '''
     # 获取所有节点的度数
     degree_dict = dict(G.degree())   
     # 按度数从大到小排序
@@ -14,6 +18,11 @@ def get_node_degrees(G):
     return degree_dict
 
 def multi_source_bfs_with_depth(G, degree_x):
+    '''
+    多源带深度BFS
+    输入：图G，源节点度数degree_x
+    输出：BFS完成后所有节点的度数-深度组合
+    '''
     # 获取所有节点的度数
     degree_dict = dict(G.degree())  
     # 找到所有度数为x的节点作为起始点
@@ -44,6 +53,11 @@ def multi_source_bfs_with_depth(G, degree_x):
 
 
 def visualize_graph_with_info(G, result):
+    '''
+    度数-深度组合可视化
+    输入：图G，BFS结果result
+    输出：图片
+    '''
     plt.rcParams['font.sans-serif'] = 'SimHei' 
     plt.figure(figsize=(12, 8)) 
     pos = nx.spring_layout(G, seed=42)
@@ -90,6 +104,9 @@ print(sorted_r1 == sorted_r2)
 '''''
 
 def running(times):
+    '''
+    times次数模拟实验，二次BFS验证
+    '''
     tp = tn = fp = fn = 0
     for _ in range(times):
         s = random.sample([0,1],1)[0] # 同构or不同构随机
