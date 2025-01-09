@@ -105,7 +105,10 @@ print(sorted_r1 == sorted_r2)
 
 def running(times):
     '''
-    times次数模拟实验，二次BFS验证
+    times次数模拟实验
+    每次实验先随机生成同构或不同构图
+    然后根据二次BFS结果判断同构性
+    最后将实际结果与预测结果比较，得到tp，tn，fp，fn（分别为真阳性，真阴性，假阳性，假阴性）的次数（阳性为同构，阴性为不同构）
     '''
     tp = tn = fp = fn = 0
     for _ in range(times):
